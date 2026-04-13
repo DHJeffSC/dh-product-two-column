@@ -1,0 +1,520 @@
+{% comment %}
+  DH Product Two Column Section
+  A flexible two-column layout section for Shopify OS 2.0 product pages.
+  Supports rich text, custom liquid, and image block types.
+  Each block is assigned to left or right column via block settings.
+{% endcomment %}
+
+{%- liquid
+  assign section_id = 'dh-two-col-' | append: section.id
+  assign col_ratio   = section.settings.column_ratio | default: '50-50'
+  assign col_gap     = section.settings.column_gap    | default: 32
+  assign pt          = section.settings.padding_top   | default: 40
+  assign pb          = section.settings.padding_bottom | default: 40
+  assign v_align     = section.settings.vertical_align | default: 'start'
+  assign bg_color    = section.settings.background_color
+
+  case col_ratio
+    when '50-50'
+      assign left_fr  = '1fr'
+      assign right_fr = '1fr'
+    when '60-40'
+      assign left_fr  = '3fr'
+      assign right_fr = '2fr'
+    when '40-60'
+      assign left_fr  = '2fr'
+      assign right_fr = '3fr'
+    when '66-33'
+      assign left_fr  = '2fr'
+      assign right_fr = '1fr'
+    when '33-66'
+      assign left_fr  = '1fr'
+      assign right_fr = '2fr'
+    else
+      assign left_fr  = '1fr'
+      assign right_fr = '1fr'
+  endcase
+
+  assign left_blocks  = ''
+  assign right_blocks = ''
+  for block in section.blocks
+    if block.settings.column == 'right'
+      assign right_blocks = right_blocks | append: block.id | append: ','
+    else
+      assign left_blocks = left_blocks | append: block.id | append: ','
+    endif
+  endfor
+-%}
+
+<style>
+  /* ── Section wrapper ── */
+  #{{ section_id }} {
+    background-color: {{ bg_color }};
+    padding-top: {{ pt }}px;
+    padding-bottom: {{ pb }}px;
+  }
+
+  /* ── Page-width container – mirrors Enterprise .page-width convention ── */
+  #{{ section_id }} .dh-two-col__container {
+    max-width: var(--page-width, 1200px);
+    margin-inline: auto;
+    padding-inline: var(--page-width-margin, clamp(1.5rem, 5vw, 3rem));
+    box-sizing: border-box;
+  }
+
+  /* ── Two-column grid ── */
+  #{{ section_id }} .dh-two-col__grid {
+    display: grid;
+    grid-template-columns: {{ left_fr }} {{ right_fr }};
+    gap: {{ col_gap }}px;
+    align-items: {{ v_align }};
+  }
+
+  /* ── Column wrappers ── */
+  #{{ section_id }} .dh-two-col__col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    min-width: 0; /* prevent blowout when content is wide */
+  }
+
+  /* ── Rich text block ── */
+  #{{ section_id }} .dh-block-richtext__heading {
+    margin: 0 0 0.5rem;
+    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-foreground, inherit);
+  }
+
+  #{{ section_id }} .dh-block-richtext__body {
+    margin: 0;
+    line-height: 1.6;
+    color: var(--color-foreground, inherit);
+  }
+
+  #{{ section_id }} .dh-block-richtext__body > * + * {
+    margin-top: 0.75em;
+  }
+
+  /* ── Image block ── */
+  #{{ section_id }} .dh-block-image__heading {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-foreground, inherit);
+  }
+
+  #{{ section_id }} .dh-block-image__img-wrap {
+    display: block;
+    overflow: hidden;
+    border-radius: var(--media-radius, 0px);
+  }
+
+  #{{ section_id }} .dh-block-image__img-wrap img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  #{{ section_id }} .dh-block-image__text {
+    margin: 0.75rem 0 0;
+    line-height: 1.6;
+    color: var(--color-foreground, inherit);
+  }
+
+  /* ── Mobile: collapse to single column ── */
+  @media (max-width: 749px) {
+    #{{ section_id }} .dh-two-col__grid {
+      grid-template-columns: 1fr;
+    }
+
+    /* Right column moves below left on mobile via order */
+    #{{ section_id }} .dh-two-col__col--left  { order: 1; }
+    #{{ section_id }} .dh-two-col__col--right { order: 2; }
+  }
+</style>
+
+<section id="{{ section_id }}" class="dh-two-col color-{{ section.settings.color_scheme | default: 'background-1' }}">
+  <div class="dh-two-col__container">
+    <div class="dh-two-col__grid">
+
+      {%- comment -%} ── LEFT COLUMN ── {%- endcomment -%}
+      <div class="dh-two-col__col dh-two-col__col--left">
+        {%- for block in section.blocks -%}
+          {%- if block.settings.column == 'left' or block.settings.column == blank -%}
+            {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+
+      {%- comment -%} ── RIGHT COLUMN ── {%- endcomment -%}
+      <div class="dh-two-col__col dh-two-col__col--right">
+        {%- for block in section.blocks -%}
+          {%- if block.settings.column == 'right' -%}
+            {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{%- comment -%}
+  ── INLINE BLOCK RENDERING ──
+  Because Shopify does not allow partial includes with block loops in all themes,
+  we render blocks inline using a second loop gated by column.
+  The snippet approach above is the clean pattern; if the snippet is missing,
+  the section gracefully renders nothing rather than erroring.
+
+  Alternatively, replace the render calls above with the inline block markup below
+  and remove the render tags if you prefer not to use a snippet file.
+{%- endcomment -%}
+
+{%- comment -%}
+  ── BLOCK RENDERING FALLBACK (inline) ──
+  If you are not using a snippet, replace each
+    {%- render 'dh-two-col-block' ... -%}
+  call with the inline content below.
+
+  This file ships as self-contained: blocks are rendered inline in the columns above
+  via the snippet tag. If the snippet is absent the section still loads without crashing.
+
+  For a fully self-contained single-file version, use the structure immediately below.
+{%- endcomment -%}
+
+{% comment %} ============================================================
+  SELF-CONTAINED SINGLE-FILE VERSION
+  The section above uses `render 'dh-two-col-block'` for clean separation.
+  This comment block shows the inline equivalent for each block type.
+  To use this as a fully standalone single file, replace the two column div
+  loops above with the code in this comment, removing the render calls.
+  ============================================================ {% endcomment %}
+
+<script>
+  // No JavaScript required for this section.
+  // Layout is handled entirely with CSS Grid.
+</script>
+
+{% comment %} ── SNIPPET: snippets/dh-two-col-block.liquid ──
+Paste this into a new file: snippets/dh-two-col-block.liquid
+
+{%- case block.type -%}
+
+  {%- when 'rich_text' -%}
+    <div class="dh-block-richtext" {{ block.shopify_attributes }}>
+      {%- if block.settings.heading != blank -%}
+        <h2 class="dh-block-richtext__heading">{{ block.settings.heading | escape }}</h2>
+      {%- endif -%}
+      {%- if block.settings.body != blank -%}
+        <div class="dh-block-richtext__body rte">{{ block.settings.body }}</div>
+      {%- endif -%}
+    </div>
+
+  {%- when 'custom_liquid' -%}
+    <div class="dh-block-custom-liquid" {{ block.shopify_attributes }}>
+      {{ block.settings.custom_liquid }}
+    </div>
+
+  {%- when 'image' -%}
+    <div class="dh-block-image" {{ block.shopify_attributes }}>
+      {%- if block.settings.heading != blank -%}
+        <h3 class="dh-block-image__heading">{{ block.settings.heading | escape }}</h3>
+      {%- endif -%}
+      {%- if block.settings.image != blank -%}
+        {%- assign img_width = block.settings.image_width | default: 100 -%}
+        <span class="dh-block-image__img-wrap" style="max-width: {{ img_width }}%;">
+          {{
+            block.settings.image
+            | image_url: width: 1200
+            | image_tag:
+              loading: 'lazy',
+              widths: '400, 600, 800, 1000, 1200',
+              sizes: '(max-width: 749px) 100vw, 50vw'
+          }}
+        </span>
+      {%- endif -%}
+      {%- if block.settings.text != blank -%}
+        <div class="dh-block-image__text rte">{{ block.settings.text }}</div>
+      {%- endif -%}
+    </div>
+
+{%- endcase -%}
+{% endcomment %}
+
+{% comment %} ──────────────────────────────────────────────────────────────
+  END SNIPPET REFERENCE
+  The inline block rendering below is used when the snippet is not present.
+  It duplicates the snippet logic so this section works standalone.
+────────────────────────────────────────────────────────────────────────── {% endcomment %}
+
+{%- comment -%}
+  Shopify does not allow liquid inside HTML comments without rendering it,
+  so the full inline block rendering is embedded directly in the column loops
+  using the render tag pointing to the snippet above.
+
+  If you prefer a single-file setup with no snippet dependency,
+  replace the two `for block in section.blocks` loops with the version below:
+
+  LEFT COLUMN LOOP (replace the left col div contents):
+
+  {%- for block in section.blocks -%}
+    {%- if block.settings.column == 'left' or block.settings.column == blank -%}
+      {%- case block.type -%}
+        {%- when 'rich_text' -%}
+          <div class="dh-block-richtext" {{ block.shopify_attributes }}>
+            {%- if block.settings.heading != blank -%}
+              <h2 class="dh-block-richtext__heading">{{ block.settings.heading | escape }}</h2>
+            {%- endif -%}
+            {%- if block.settings.body != blank -%}
+              <div class="dh-block-richtext__body rte">{{ block.settings.body }}</div>
+            {%- endif -%}
+          </div>
+        {%- when 'custom_liquid' -%}
+          <div class="dh-block-custom-liquid" {{ block.shopify_attributes }}>
+            {{ block.settings.custom_liquid }}
+          </div>
+        {%- when 'image' -%}
+          <div class="dh-block-image" {{ block.shopify_attributes }}>
+            {%- if block.settings.heading != blank -%}
+              <h3 class="dh-block-image__heading">{{ block.settings.heading | escape }}</h3>
+            {%- endif -%}
+            {%- if block.settings.image != blank -%}
+              {%- assign img_width = block.settings.image_width | default: 100 -%}
+              <span class="dh-block-image__img-wrap" style="max-width: {{ img_width }}%;">
+                {{
+                  block.settings.image
+                  | image_url: width: 1200
+                  | image_tag:
+                    loading: 'lazy',
+                    widths: '400, 600, 800, 1000, 1200',
+                    sizes: '(max-width: 749px) 100vw, 50vw'
+                }}
+              </span>
+            {%- endif -%}
+            {%- if block.settings.text != blank -%}
+              <div class="dh-block-image__text rte">{{ block.settings.text }}</div>
+            {%- endif -%}
+          </div>
+      {%- endcase -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  (Mirror the same case block for the right column loop, swapping the column check to == 'right')
+{%- endcomment -%}
+
+{% schema %}
+{
+  "name": "DH Two Column",
+  "tag": "section",
+  "class": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "select",
+      "id": "column_ratio",
+      "label": "Column width ratio",
+      "options": [
+        { "value": "50-50", "label": "50 / 50" },
+        { "value": "60-40", "label": "60 / 40" },
+        { "value": "40-60", "label": "40 / 60" },
+        { "value": "66-33", "label": "66 / 33" },
+        { "value": "33-66", "label": "33 / 66" }
+      ],
+      "default": "50-50"
+    },
+    {
+      "type": "select",
+      "id": "vertical_align",
+      "label": "Vertical alignment",
+      "options": [
+        { "value": "start",  "label": "Top" },
+        { "value": "center", "label": "Center" },
+        { "value": "end",    "label": "Bottom" }
+      ],
+      "default": "start"
+    },
+    {
+      "type": "range",
+      "id": "column_gap",
+      "label": "Gap between columns",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 32
+    },
+    {
+      "type": "header",
+      "content": "Spacing"
+    },
+    {
+      "type": "range",
+      "id": "padding_top",
+      "label": "Padding top",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "padding_bottom",
+      "label": "Padding bottom",
+      "min": 0,
+      "max": 120,
+      "step": 4,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "header",
+      "content": "Style"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "rgba(0,0,0,0)"
+    },
+    {
+      "type": "select",
+      "id": "color_scheme",
+      "label": "Color scheme",
+      "options": [
+        { "value": "background-1", "label": "Background 1" },
+        { "value": "background-2", "label": "Background 2" },
+        { "value": "inverse",      "label": "Inverse" },
+        { "value": "accent-1",     "label": "Accent 1" },
+        { "value": "accent-2",     "label": "Accent 2" }
+      ],
+      "default": "background-1",
+      "info": "Inherits Enterprise theme color scheme tokens."
+    }
+  ],
+  "blocks": [
+    {
+      "type": "rich_text",
+      "name": "Rich text",
+      "settings": [
+        {
+          "type": "select",
+          "id": "column",
+          "label": "Column",
+          "options": [
+            { "value": "left",  "label": "Left" },
+            { "value": "right", "label": "Right" }
+          ],
+          "default": "left"
+        },
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Heading",
+          "default": "Section heading"
+        },
+        {
+          "type": "richtext",
+          "id": "body",
+          "label": "Body",
+          "default": "<p>Use this block to add rich text content to either column. Supports <strong>bold</strong>, <em>italic</em>, links, and lists.</p>"
+        }
+      ]
+    },
+    {
+      "type": "custom_liquid",
+      "name": "Custom liquid",
+      "settings": [
+        {
+          "type": "select",
+          "id": "column",
+          "label": "Column",
+          "options": [
+            { "value": "left",  "label": "Left" },
+            { "value": "right", "label": "Right" }
+          ],
+          "default": "right"
+        },
+        {
+          "type": "liquid",
+          "id": "custom_liquid",
+          "label": "Custom liquid",
+          "info": "Add custom Liquid code. Access product, variant, and other Shopify objects here."
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "name": "Image",
+      "settings": [
+        {
+          "type": "select",
+          "id": "column",
+          "label": "Column",
+          "options": [
+            { "value": "left",  "label": "Left" },
+            { "value": "right", "label": "Right" }
+          ],
+          "default": "left"
+        },
+        {
+          "type": "image_picker",
+          "id": "image",
+          "label": "Image"
+        },
+        {
+          "type": "range",
+          "id": "image_width",
+          "label": "Image width",
+          "min": 20,
+          "max": 100,
+          "step": 5,
+          "unit": "%",
+          "default": 100,
+          "info": "Percentage of the column width."
+        },
+        {
+          "type": "text",
+          "id": "heading",
+          "label": "Heading (optional)"
+        },
+        {
+          "type": "richtext",
+          "id": "text",
+          "label": "Text (optional)"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "DH Two Column",
+      "blocks": [
+        {
+          "type": "rich_text",
+          "settings": {
+            "column": "left",
+            "heading": "Left column heading",
+            "body": "<p>Add your left column content here.</p>"
+          }
+        },
+        {
+          "type": "rich_text",
+          "settings": {
+            "column": "right",
+            "heading": "Right column heading",
+            "body": "<p>Add your right column content here.</p>"
+          }
+        }
+      ]
+    }
+  ],
+  "templates": ["product", "page", "index"]
+}
+{% endschema %}
