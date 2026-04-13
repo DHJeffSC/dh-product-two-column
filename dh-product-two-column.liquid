@@ -415,10 +415,42 @@
           "default": "Section heading"
         },
         {
+          "type": "range",
+          "id": "heading_size",
+          "label": "Heading font size",
+          "min": 0,
+          "max": 72,
+          "step": 1,
+          "unit": "px",
+          "default": 0,
+          "info": "Set to 0 to inherit the theme default size."
+        },
+        {
+          "type": "color",
+          "id": "heading_color",
+          "label": "Heading color"
+        },
+        {
           "type": "richtext",
           "id": "body",
           "label": "Body",
           "default": "<p>Use this block to add rich text content to either column. Supports <strong>bold</strong>, <em>italic</em>, links, and lists.</p>"
+        },
+        {
+          "type": "range",
+          "id": "body_size",
+          "label": "Body font size",
+          "min": 0,
+          "max": 36,
+          "step": 1,
+          "unit": "px",
+          "default": 0,
+          "info": "Set to 0 to inherit the theme default size."
+        },
+        {
+          "type": "color",
+          "id": "body_color",
+          "label": "Body color"
         }
       ]
     },

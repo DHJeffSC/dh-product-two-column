@@ -11,12 +11,29 @@
 {%- case block.type -%}
 
   {%- when 'rich_text' -%}
+    {%- liquid
+      assign heading_style = ''
+      if block.settings.heading_size != 0
+        assign heading_style = heading_style | append: 'font-size:' | append: block.settings.heading_size | append: 'px;'
+      endif
+      if block.settings.heading_color != blank
+        assign heading_style = heading_style | append: 'color:' | append: block.settings.heading_color | append: ';'
+      endif
+
+      assign body_style = ''
+      if block.settings.body_size != 0
+        assign body_style = body_style | append: 'font-size:' | append: block.settings.body_size | append: 'px;'
+      endif
+      if block.settings.body_color != blank
+        assign body_style = body_style | append: 'color:' | append: block.settings.body_color | append: ';'
+      endif
+    -%}
     <div class="dh-block-richtext" {{ block.shopify_attributes }}>
       {%- if block.settings.heading != blank -%}
-        <h2 class="dh-block-richtext__heading">{{ block.settings.heading | escape }}</h2>
+        <h2 class="dh-block-richtext__heading"{% if heading_style != blank %} style="{{ heading_style }}"{% endif %}>{{ block.settings.heading | escape }}</h2>
       {%- endif -%}
       {%- if block.settings.body != blank -%}
-        <div class="dh-block-richtext__body rte">{{ block.settings.body }}</div>
+        <div class="dh-block-richtext__body rte"{% if body_style != blank %} style="{{ body_style }}"{% endif %}>{{ block.settings.body }}</div>
       {%- endif -%}
     </div>
 
