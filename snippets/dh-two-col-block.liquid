@@ -10,6 +10,32 @@
 
 {%- case block.type -%}
 
+  {%- comment -%} ═══════════════════════════════════════
+    HEADING BLOCK
+  ═══════════════════════════════════════ {%- endcomment -%}
+  {%- when 'heading' -%}
+    {%- liquid
+      assign heading_tag   = 'h2'
+      if block.settings.is_h1
+        assign heading_tag = 'h1'
+      endif
+
+      assign heading_style = ''
+      if block.settings.font_size != 0
+        assign heading_style = heading_style | append: 'font-size:' | append: block.settings.font_size | append: 'px;'
+      endif
+      if block.settings.font_color != blank
+        assign heading_style = heading_style | append: 'color:' | append: block.settings.font_color | append: ';'
+      endif
+    -%}
+    <{{ heading_tag }} class="dh-block-heading"{% if heading_style != blank %} style="{{ heading_style }}"{% endif %} {{ block.shopify_attributes }}>
+      {{- block.settings.text | escape -}}
+    </{{ heading_tag }}>
+
+
+  {%- comment -%} ═══════════════════════════════════════
+    RICH TEXT BLOCK
+  ═══════════════════════════════════════ {%- endcomment -%}
   {%- when 'rich_text' -%}
     {%- liquid
       assign heading_style = ''
@@ -37,11 +63,19 @@
       {%- endif -%}
     </div>
 
+
+  {%- comment -%} ═══════════════════════════════════════
+    CUSTOM LIQUID BLOCK
+  ═══════════════════════════════════════ {%- endcomment -%}
   {%- when 'custom_liquid' -%}
     <div class="dh-block-custom-liquid" {{ block.shopify_attributes }}>
       {{ block.settings.custom_liquid }}
     </div>
 
+
+  {%- comment -%} ═══════════════════════════════════════
+    IMAGE BLOCK
+  ═══════════════════════════════════════ {%- endcomment -%}
   {%- when 'image' -%}
     <div class="dh-block-image" {{ block.shopify_attributes }}>
       {%- if block.settings.heading != blank -%}
@@ -63,6 +97,135 @@
       {%- if block.settings.text != blank -%}
         <div class="dh-block-image__text rte">{{ block.settings.text }}</div>
       {%- endif -%}
+    </div>
+
+
+  {%- comment -%} ═══════════════════════════════════════
+    GALLERY BLOCK
+    - Default images sourced from product.images
+    - Featured image shown first
+    - Thumbnails: vertical (left) or horizontal (bottom)
+    - Overflow thumbnails get prev/next scroll buttons
+    - Click thumbnail → update featured image
+    - Click featured image → opens lightbox
+    - Lightbox: prev/next arrows, close, keyboard support
+  ═══════════════════════════════════════ {%- endcomment -%}
+  {%- when 'gallery' -%}
+    {%- liquid
+      assign thumb_pos  = block.settings.thumbnail_position | default: 'bottom'
+      assign thumb_size = block.settings.thumbnail_size | default: 80
+      assign img_ratio  = block.settings.image_ratio | default: 'natural'
+      assign gallery_id = 'dh-gallery-' | append: block.id
+    -%}
+
+    {%- comment -%} Embed image data for JS (src + alt for every product image) {%- endcomment -%}
+    <script type="application/json" id="{{ gallery_id }}-data">
+      {"images":[
+        {%- for image in product.images -%}
+          {"src":{{ image | image_url: width: 1600 | json }},"alt":{{ image.alt | default: product.title | json }}}{% unless forloop.last %},{% endunless %}
+        {%- endfor -%}
+      ]}
+    </script>
+
+    <div class="dh-block-gallery"
+         data-gallery="{{ gallery_id }}"
+         data-thumb-position="{{ thumb_pos }}"
+         style="--thumb-size: {{ thumb_size }}px;"
+         {{ block.shopify_attributes }}>
+
+      <div class="dh-gallery__layout">
+
+        {%- comment -%} ── Featured image ── {%- endcomment -%}
+        <div class="dh-gallery__main">
+          <button class="dh-gallery__main-btn" type="button" aria-label="Open image in lightbox" data-gallery-open>
+            <div class="dh-gallery__img-wrap" data-ratio="{{ img_ratio }}">
+              {%- if product.featured_image -%}
+                <img class="dh-gallery__main-img"
+                     data-gallery-main-img
+                     src="{{ product.featured_image | image_url: width: 1200 }}"
+                     alt="{{ product.featured_image.alt | default: product.title | escape }}"
+                     loading="eager"
+                     width="{{ product.featured_image.width }}"
+                     height="{{ product.featured_image.height }}">
+              {%- endif -%}
+            </div>
+          </button>
+        </div>
+
+        {%- comment -%} ── Thumbnails (only when 2+ images exist) ── {%- endcomment -%}
+        {%- if product.images.size > 1 -%}
+          <div class="dh-gallery__thumbs dh-gallery__thumbs--{{ thumb_pos }}">
+
+            {%- comment ─ Prev scroll button ─ {%- endcomment -%}
+            <button class="dh-gallery__scroll-btn dh-gallery__scroll-btn--prev"
+                    type="button" data-gallery-scroll="-1" hidden
+                    aria-label="Scroll thumbnails back">
+              {%- if thumb_pos == 'left' -%}
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 9 7 4 12 9"/></svg>
+              {%- else -%}
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 2 4 7 9 12"/></svg>
+              {%- endif -%}
+            </button>
+
+            <div class="dh-gallery__thumbs-viewport" data-gallery-thumbs-viewport>
+              <div class="dh-gallery__thumbs-track" data-gallery-thumbs-track>
+                {%- for image in product.images -%}
+                  <button class="dh-gallery__thumb{% if forloop.first %} is-active{% endif %}"
+                          type="button"
+                          data-gallery-thumb="{{ forloop.index0 }}"
+                          aria-label="View image {{ forloop.index }}">
+                    <img src="{{ image | image_url: width: 300 }}"
+                         alt="{{ image.alt | default: product.title | escape }}"
+                         loading="lazy">
+                  </button>
+                {%- endfor -%}
+              </div>
+            </div>
+
+            {%- comment ─ Next scroll button ─ {%- endcomment -%}
+            <button class="dh-gallery__scroll-btn dh-gallery__scroll-btn--next"
+                    type="button" data-gallery-scroll="1" hidden
+                    aria-label="Scroll thumbnails forward">
+              {%- if thumb_pos == 'left' -%}
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 5 7 10 12 5"/></svg>
+              {%- else -%}
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 2 10 7 5 12"/></svg>
+              {%- endif -%}
+            </button>
+
+          </div>
+        {%- endif -%}
+
+      </div>
+
+      {%- comment -%} ── Lightbox ──
+        JS moves this to <body> on init to avoid CSS stacking context issues.
+        data-gallery-section is used for cleanup on shopify:section:unload.
+      {%- endcomment -%}
+      <div class="dh-gallery__lightbox"
+           data-gallery-lightbox
+           data-gallery-section="{{ section.id }}"
+           hidden
+           role="dialog"
+           aria-modal="true"
+           aria-label="Image lightbox">
+        <div class="dh-gallery__lb-overlay" data-gallery-lb-close></div>
+        <div class="dh-gallery__lb-frame">
+          <button class="dh-gallery__lb-close" type="button" data-gallery-lb-close aria-label="Close lightbox">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="15" y1="5" x2="5" y2="15"/><line x1="5" y1="5" x2="15" y2="15"/></svg>
+          </button>
+          <button class="dh-gallery__lb-nav dh-gallery__lb-nav--prev" type="button" data-gallery-lb-prev aria-label="Previous image">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="dh-gallery__lb-img-wrap">
+            <img class="dh-gallery__lb-img" data-gallery-lb-img src="" alt="" loading="eager">
+          </div>
+          <button class="dh-gallery__lb-nav dh-gallery__lb-nav--next" type="button" data-gallery-lb-next aria-label="Next image">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
     </div>
 
 {%- endcase -%}

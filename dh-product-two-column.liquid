@@ -1,9 +1,8 @@
 {% comment %}
   DH Product Two Column Section
   A flexible two-column layout section for Shopify OS 2.0 product pages.
-  Supports rich text, custom liquid, and image block types.
-  Each block can be assigned to the left column, right column, or both columns (full-width span).
-  Spanning blocks can be placed above or below the two-column grid.
+  Block types: heading, rich text, custom liquid, image, gallery.
+  Each block can be assigned to left column, right column, or both (full-width span).
 {% endcomment %}
 
 {%- liquid
@@ -60,10 +59,6 @@
       assign right_fr = '1fr'
   endcase
 
-  comment
-    Check whether the section has any left/right blocks so we skip
-    rendering an empty grid when only spanning blocks are present.
-  endcomment
   assign has_col_blocks = false
   for block in section.blocks
     if block.settings.column == 'left' or block.settings.column == 'right' or block.settings.column == blank
@@ -108,10 +103,10 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    min-width: 0; /* prevent blowout when content is wide */
+    min-width: 0;
   }
 
-  /* ── Spanning block row (full width above or below the grid) ── */
+  /* ── Spanning block row (full width) ── */
   #{{ section_id }} .dh-two-col__span {
     display: flex;
     flex-direction: column;
@@ -119,7 +114,19 @@
     width: 100%;
   }
 
-  /* ── Rich text block ── */
+  /* ────────────────────────────────────────────────
+     HEADING BLOCK
+  ─────────────────────────────────────────────── */
+  #{{ section_id }} .dh-block-heading {
+    margin: 0;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-foreground, inherit);
+  }
+
+  /* ────────────────────────────────────────────────
+     RICH TEXT BLOCK
+  ─────────────────────────────────────────────── */
   #{{ section_id }} .dh-block-richtext__heading {
     margin: 0 0 0.5rem;
     font-size: clamp(1.25rem, 2.5vw, 1.75rem);
@@ -134,11 +141,11 @@
     color: var(--color-foreground, inherit);
   }
 
-  #{{ section_id }} .dh-block-richtext__body > * + * {
-    margin-top: 0.75em;
-  }
+  #{{ section_id }} .dh-block-richtext__body > * + * { margin-top: 0.75em; }
 
-  /* ── Image block ── */
+  /* ────────────────────────────────────────────────
+     IMAGE BLOCK
+  ─────────────────────────────────────────────── */
   #{{ section_id }} .dh-block-image__heading {
     margin: 0 0 0.75rem;
     font-size: clamp(1.1rem, 2vw, 1.5rem);
@@ -165,15 +172,299 @@
     color: var(--color-foreground, inherit);
   }
 
-  /* ── Mobile: collapse to single column ── */
-  @media (max-width: 749px) {
-    #{{ section_id }} .dh-two-col__grid {
-      grid-template-columns: 1fr;
-    }
+  /* ────────────────────────────────────────────────
+     GALLERY BLOCK — layout
+  ─────────────────────────────────────────────── */
+  #{{ section_id }} .dh-block-gallery { width: 100%; }
 
-    /* Right column moves below left on mobile via order */
+  /* Both orientations use flex; direction is set per-variant */
+  #{{ section_id }} .dh-gallery__layout {
+    display: flex;
+    gap: 12px;
+  }
+
+  /* Bottom thumbnails: column layout (default) */
+  #{{ section_id }} .dh-block-gallery[data-thumb-position="bottom"] .dh-gallery__layout {
+    flex-direction: column;
+  }
+
+  /* Left thumbnails: row layout */
+  #{{ section_id }} .dh-block-gallery[data-thumb-position="left"] .dh-gallery__layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  /* ── Featured image ── */
+  #{{ section_id }} .dh-gallery__main { flex: 1; min-width: 0; }
+
+  #{{ section_id }} .dh-gallery__main-btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: zoom-in;
+  }
+
+  #{{ section_id }} .dh-gallery__img-wrap {
+    display: block;
+    overflow: hidden;
+    border-radius: var(--media-radius, 0px);
+    background: var(--color-background-2, #f4f4f4);
+  }
+
+  /* Aspect ratio variants */
+  #{{ section_id }} .dh-gallery__img-wrap[data-ratio="square"]    { aspect-ratio: 1 / 1; }
+  #{{ section_id }} .dh-gallery__img-wrap[data-ratio="portrait"]  { aspect-ratio: 2 / 3; }
+  #{{ section_id }} .dh-gallery__img-wrap[data-ratio="landscape"] { aspect-ratio: 4 / 3; }
+
+  #{{ section_id }} .dh-gallery__main-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.2s;
+  }
+
+  /* Natural ratio: let image set its own height */
+  #{{ section_id }} .dh-gallery__img-wrap[data-ratio="natural"] .dh-gallery__main-img {
+    height: auto;
+    object-fit: unset;
+  }
+
+  /* ── Thumbnails container ── */
+  #{{ section_id }} .dh-gallery__thumbs {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* Horizontal strip (bottom) */
+  #{{ section_id }} .dh-gallery__thumbs--bottom {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  /* Vertical strip (left): fixed width, appears before main image */
+  #{{ section_id }} .dh-gallery__thumbs--left {
+    flex-direction: column;
+    align-items: center;
+    width: calc(var(--thumb-size, 80px) + 16px);
+    order: -1;
+  }
+
+  /* Viewport: clips overflow */
+  #{{ section_id }} .dh-gallery__thumbs-viewport {
+    flex: 1;
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  #{{ section_id }} .dh-gallery__thumbs--left .dh-gallery__thumbs-viewport {
+    max-height: 520px;
+  }
+
+  /* Track: the scrollable flex row/column */
+  #{{ section_id }} .dh-gallery__thumbs-track {
+    display: flex;
+    gap: 6px;
+  }
+
+  #{{ section_id }} .dh-gallery__thumbs--bottom .dh-gallery__thumbs-track {
+    flex-direction: row;
+  }
+
+  #{{ section_id }} .dh-gallery__thumbs--left .dh-gallery__thumbs-track {
+    flex-direction: column;
+  }
+
+  /* Individual thumbnail */
+  #{{ section_id }} .dh-gallery__thumb {
+    flex-shrink: 0;
+    display: block;
+    width: var(--thumb-size, 80px);
+    height: var(--thumb-size, 80px);
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--media-radius, 0px);
+    overflow: hidden;
+    cursor: pointer;
+    background: none;
+    transition: border-color 0.15s;
+  }
+
+  #{{ section_id }} .dh-gallery__thumb:hover,
+  #{{ section_id }} .dh-gallery__thumb:focus-visible {
+    border-color: var(--color-foreground, #000);
+    outline: none;
+  }
+
+  #{{ section_id }} .dh-gallery__thumb.is-active {
+    border-color: var(--color-foreground, #000);
+  }
+
+  #{{ section_id }} .dh-gallery__thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+
+  /* Scroll prev/next buttons */
+  #{{ section_id }} .dh-gallery__scroll-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: var(--color-background, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--color-foreground, #000);
+    transition: background 0.15s;
+  }
+
+  #{{ section_id }} .dh-gallery__scroll-btn:hover {
+    background: var(--color-background-2, #f4f4f4);
+  }
+
+  /* ────────────────────────────────────────────────
+     GALLERY BLOCK — lightbox
+     (element is moved to <body> by JS so position:fixed
+     is always relative to the viewport)
+  ─────────────────────────────────────────────── */
+  .dh-gallery__lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dh-gallery__lightbox[hidden] { display: none; }
+
+  .dh-gallery__lb-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    cursor: zoom-out;
+  }
+
+  .dh-gallery__lb-frame {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 56px 72px;
+    box-sizing: border-box;
+    pointer-events: none;
+  }
+
+  .dh-gallery__lb-img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+    max-height: 100%;
+    pointer-events: auto;
+  }
+
+  .dh-gallery__lb-img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100dvh - 120px);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: var(--media-radius, 0px);
+  }
+
+  /* Close button */
+  .dh-gallery__lb-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.55);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s;
+  }
+
+  .dh-gallery__lb-close:hover { background: rgba(0, 0, 0, 0.8); }
+
+  /* Prev / Next arrows */
+  .dh-gallery__lb-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.55);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s;
+  }
+
+  .dh-gallery__lb-nav:hover { background: rgba(0, 0, 0, 0.8); }
+
+  .dh-gallery__lb-nav--prev { left: 14px; }
+  .dh-gallery__lb-nav--next { right: 14px; }
+
+  /* ────────────────────────────────────────────────
+     MOBILE OVERRIDES
+  ─────────────────────────────────────────────── */
+  @media (max-width: 749px) {
+    /* Collapse two-column grid */
+    #{{ section_id }} .dh-two-col__grid { grid-template-columns: 1fr; }
     #{{ section_id }} .dh-two-col__col--left  { order: 1; }
     #{{ section_id }} .dh-two-col__col--right { order: 2; }
+
+    /* Left-position thumbnails collapse to horizontal bottom row on mobile */
+    #{{ section_id }} .dh-block-gallery[data-thumb-position="left"] .dh-gallery__layout {
+      flex-direction: column;
+    }
+    #{{ section_id }} .dh-gallery__thumbs--left {
+      order: 0;
+      width: 100%;
+      flex-direction: row;
+    }
+    #{{ section_id }} .dh-gallery__thumbs--left .dh-gallery__thumbs-viewport {
+      max-height: none;
+    }
+    #{{ section_id }} .dh-gallery__thumbs--left .dh-gallery__thumbs-track {
+      flex-direction: row;
+    }
+
+    /* Compact lightbox padding on small screens */
+    .dh-gallery__lb-frame { padding: 56px 14px 14px; }
+    .dh-gallery__lb-nav   { width: 40px; height: 40px; }
   }
 </style>
 
@@ -181,9 +472,7 @@
   <div class="dh-two-col__container">
     <div class="dh-two-col__inner">
 
-      {%- comment -%} ── SPANNING BLOCKS: ABOVE ──
-        Render any blocks assigned to "both" columns with placement "above" (or blank).
-      {%- endcomment -%}
+      {%- comment -%} ── SPANNING BLOCKS: ABOVE ── {%- endcomment -%}
       {%- assign has_above = false -%}
       {%- for block in section.blocks -%}
         {%- if block.settings.column == 'both' and block.settings.span_placement != 'below' -%}
@@ -201,13 +490,10 @@
         </div>
       {%- endif -%}
 
-      {%- comment -%} ── TWO-COLUMN GRID ──
-        Only rendered when at least one block is assigned to left or right.
-      {%- endcomment -%}
+      {%- comment -%} ── TWO-COLUMN GRID ── {%- endcomment -%}
       {%- if has_col_blocks -%}
         <div class="dh-two-col__grid">
 
-          {%- comment -%} LEFT COLUMN {%- endcomment -%}
           <div class="dh-two-col__col dh-two-col__col--left">
             {%- for block in section.blocks -%}
               {%- if block.settings.column == 'left' or block.settings.column == blank -%}
@@ -216,7 +502,6 @@
             {%- endfor -%}
           </div>
 
-          {%- comment -%} RIGHT COLUMN {%- endcomment -%}
           <div class="dh-two-col__col dh-two-col__col--right">
             {%- for block in section.blocks -%}
               {%- if block.settings.column == 'right' -%}
@@ -228,9 +513,7 @@
         </div>
       {%- endif -%}
 
-      {%- comment -%} ── SPANNING BLOCKS: BELOW ──
-        Render any blocks assigned to "both" columns with placement "below".
-      {%- endcomment -%}
+      {%- comment -%} ── SPANNING BLOCKS: BELOW ── {%- endcomment -%}
       {%- assign has_below = false -%}
       {%- for block in section.blocks -%}
         {%- if block.settings.column == 'both' and block.settings.span_placement == 'below' -%}
@@ -253,8 +536,215 @@
 </section>
 
 <script>
-  // No JavaScript required for this section.
-  // Layout is handled entirely with CSS Grid and Flexbox.
+(function () {
+  'use strict';
+
+  /* ─────────────────────────────────────────────────────────────
+     DHGallery
+     One instance per gallery block. Handles:
+       - Thumbnail click → update featured image
+       - Thumbnail overflow → show/hide prev/next scroll buttons
+       - Featured image click → open lightbox
+       - Lightbox prev/next/close + keyboard (Esc, ←, →)
+     The lightbox element is moved to <body> on init so that
+     position:fixed is always relative to the viewport, regardless
+     of any CSS transforms on ancestor elements.
+  ───────────────────────────────────────────────────────────── */
+  class DHGallery {
+    constructor(el) {
+      this.el        = el;
+      this.id        = el.dataset.gallery;
+      this.currIdx   = 0;
+      this.lbOpen    = false;
+
+      /* Load image list from embedded JSON */
+      const dataEl   = document.getElementById(this.id + '-data');
+      this.images    = dataEl ? JSON.parse(dataEl.textContent).images : [];
+
+      /* DOM refs */
+      this.mainImg   = el.querySelector('[data-gallery-main-img]');
+      this.openBtn   = el.querySelector('[data-gallery-open]');
+      this.viewport  = el.querySelector('[data-gallery-thumbs-viewport]');
+      this.track     = el.querySelector('[data-gallery-thumbs-track]');
+      this.thumbs    = Array.from(el.querySelectorAll('[data-gallery-thumb]'));
+      this.scrollBtns = Array.from(el.querySelectorAll('[data-gallery-scroll]'));
+
+      /* Move lightbox to <body> */
+      const lbEl = el.querySelector('[data-gallery-lightbox]');
+      if (lbEl) {
+        this.lb    = lbEl;
+        this.lbImg = lbEl.querySelector('[data-gallery-lb-img]');
+        document.body.appendChild(lbEl);
+        /* Hide nav arrows when there is only one image */
+        if (this.images.length <= 1) {
+          lbEl.querySelectorAll('[data-gallery-lb-prev],[data-gallery-lb-next]')
+              .forEach(b => { b.hidden = true; });
+        }
+      }
+
+      this._bind();
+      this._checkOverflow();
+
+      /* Re-check after thumbnail images load */
+      if (this.track) {
+        Array.from(this.track.querySelectorAll('img')).forEach(img => {
+          if (!img.complete) img.addEventListener('load', () => this._checkOverflow());
+        });
+      }
+
+      /* Re-check on resize */
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => this._checkOverflow()).observe(this.el);
+      } else {
+        window.addEventListener('resize', () => this._checkOverflow());
+      }
+    }
+
+    _bind() {
+      /* Thumbnail clicks */
+      this.thumbs.forEach(btn => {
+        btn.addEventListener('click', () => this.goTo(parseInt(btn.dataset.galleryThumb, 10)));
+      });
+
+      /* Open lightbox */
+      if (this.openBtn) {
+        this.openBtn.addEventListener('click', () => this._openLb(this.currIdx));
+      }
+
+      /* Thumb strip scroll buttons */
+      this.scrollBtns.forEach(btn => {
+        btn.addEventListener('click', () => this._scrollStrip(parseInt(btn.dataset.galleryScroll, 10)));
+      });
+
+      /* Lightbox controls */
+      if (this.lb) {
+        this.lb.querySelectorAll('[data-gallery-lb-close]').forEach(b => {
+          b.addEventListener('click', () => this._closeLb());
+        });
+        const prev = this.lb.querySelector('[data-gallery-lb-prev]');
+        const next = this.lb.querySelector('[data-gallery-lb-next]');
+        if (prev) prev.addEventListener('click', () => this._lbNav(-1));
+        if (next) next.addEventListener('click', () => this._lbNav(1));
+      }
+
+      /* Keyboard */
+      document.addEventListener('keydown', e => {
+        if (!this.lbOpen) return;
+        if (e.key === 'Escape')     this._closeLb();
+        if (e.key === 'ArrowLeft')  this._lbNav(-1);
+        if (e.key === 'ArrowRight') this._lbNav(1);
+      });
+    }
+
+    goTo(index) {
+      if (index < 0 || index >= this.images.length) return;
+      this.currIdx = index;
+
+      /* Swap featured image */
+      if (this.mainImg) {
+        this.mainImg.style.opacity = '0.6';
+        this.mainImg.src = this.images[index].src;
+        this.mainImg.alt = this.images[index].alt || '';
+        this.mainImg.onload = () => { this.mainImg.style.opacity = ''; };
+      }
+
+      /* Update active thumb */
+      this.thumbs.forEach((b, i) => b.classList.toggle('is-active', i === index));
+
+      /* Scroll active thumb into view */
+      const active = this.thumbs[index];
+      if (active && this.viewport) {
+        const vert = this.el.dataset.thumbPosition === 'left';
+        if (vert) {
+          this.viewport.scrollTo({
+            top: active.offsetTop - this.viewport.clientHeight / 2 + active.offsetHeight / 2,
+            behavior: 'smooth'
+          });
+        } else {
+          this.viewport.scrollTo({
+            left: active.offsetLeft - this.viewport.clientWidth / 2 + active.offsetWidth / 2,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }
+
+    _scrollStrip(dir) {
+      if (!this.viewport) return;
+      const vert   = this.el.dataset.thumbPosition === 'left';
+      const size   = parseFloat(getComputedStyle(this.el).getPropertyValue('--thumb-size')) || 80;
+      const amount = size * 2 + 12;
+      if (vert) {
+        this.viewport.scrollBy({ top: dir * amount, behavior: 'smooth' });
+      } else {
+        this.viewport.scrollBy({ left: dir * amount, behavior: 'smooth' });
+      }
+    }
+
+    _checkOverflow() {
+      if (!this.viewport || !this.track) return;
+      const vert  = this.el.dataset.thumbPosition === 'left';
+      const over  = vert
+        ? this.track.scrollHeight > this.viewport.clientHeight + 4
+        : this.track.scrollWidth  > this.viewport.clientWidth  + 4;
+      this.scrollBtns.forEach(b => { b.hidden = !over; });
+    }
+
+    _openLb(index) {
+      if (!this.lb) return;
+      this.lbOpen = true;
+      this._setLbImg(index);
+      this.lb.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+
+    _closeLb() {
+      if (!this.lb) return;
+      this.lbOpen = false;
+      this.lb.hidden = true;
+      document.body.style.overflow = '';
+    }
+
+    _lbNav(dir) {
+      const next = (this.currIdx + dir + this.images.length) % this.images.length;
+      this.goTo(next);
+      this._setLbImg(next);
+    }
+
+    _setLbImg(index) {
+      if (!this.lbImg || !this.images[index]) return;
+      this.lbImg.src = this.images[index].src;
+      this.lbImg.alt = this.images[index].alt || '';
+    }
+  }
+
+  /* Init all uninitialised gallery blocks in (optional) root */
+  function initGalleries(root) {
+    (root || document)
+      .querySelectorAll('[data-gallery]:not([data-gallery-ready])')
+      .forEach(el => { el.dataset.galleryReady = 'true'; new DHGallery(el); });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initGalleries());
+  } else {
+    initGalleries();
+  }
+
+  /* Shopify theme editor: reinit on section/block load */
+  document.addEventListener('shopify:section:load',  e => initGalleries(e.target));
+  document.addEventListener('shopify:block:select',  e => initGalleries(e.target));
+
+  /* Shopify theme editor: clean up orphaned lightboxes on section unload */
+  document.addEventListener('shopify:section:unload', e => {
+    const sid = e.detail && e.detail.sectionId;
+    if (!sid) return;
+    document.querySelectorAll(`.dh-gallery__lightbox[data-gallery-section="${sid}"]`)
+            .forEach(lb => lb.remove());
+    document.body.style.overflow = '';
+  });
+
+})();
 </script>
 
 {% schema %}
@@ -382,6 +872,63 @@
     }
   ],
   "blocks": [
+    {
+      "type": "heading",
+      "name": "Heading",
+      "settings": [
+        {
+          "type": "select",
+          "id": "column",
+          "label": "Column",
+          "options": [
+            { "value": "left",  "label": "Left" },
+            { "value": "right", "label": "Right" },
+            { "value": "both",  "label": "Both (full width)" }
+          ],
+          "default": "left"
+        },
+        {
+          "type": "select",
+          "id": "span_placement",
+          "label": "Placement",
+          "options": [
+            { "value": "above", "label": "Above columns" },
+            { "value": "below", "label": "Below columns" }
+          ],
+          "default": "above",
+          "info": "Only applies when Column is set to \"Both (full width)\"."
+        },
+        {
+          "type": "text",
+          "id": "text",
+          "label": "Heading text",
+          "default": "Your heading here"
+        },
+        {
+          "type": "checkbox",
+          "id": "is_h1",
+          "label": "Make page H1",
+          "default": false,
+          "info": "Use only once per page. Renders as <h1> for SEO."
+        },
+        {
+          "type": "range",
+          "id": "font_size",
+          "label": "Font size",
+          "min": 0,
+          "max": 96,
+          "step": 2,
+          "unit": "px",
+          "default": 0,
+          "info": "Set to 0 to inherit the theme default."
+        },
+        {
+          "type": "color",
+          "id": "font_color",
+          "label": "Font color"
+        }
+      ]
+    },
     {
       "type": "rich_text",
       "name": "Rich text",
@@ -539,6 +1086,75 @@
           "type": "richtext",
           "id": "text",
           "label": "Text (optional)"
+        }
+      ]
+    },
+    {
+      "type": "gallery",
+      "name": "Gallery",
+      "settings": [
+        {
+          "type": "select",
+          "id": "column",
+          "label": "Column",
+          "options": [
+            { "value": "left",  "label": "Left" },
+            { "value": "right", "label": "Right" },
+            { "value": "both",  "label": "Both (full width)" }
+          ],
+          "default": "left"
+        },
+        {
+          "type": "select",
+          "id": "span_placement",
+          "label": "Placement",
+          "options": [
+            { "value": "above", "label": "Above columns" },
+            { "value": "below", "label": "Below columns" }
+          ],
+          "default": "above",
+          "info": "Only applies when Column is set to \"Both (full width)\"."
+        },
+        {
+          "type": "header",
+          "content": "Thumbnails"
+        },
+        {
+          "type": "select",
+          "id": "thumbnail_position",
+          "label": "Thumbnail position",
+          "options": [
+            { "value": "bottom", "label": "Bottom (horizontal)" },
+            { "value": "left",   "label": "Left (vertical)" }
+          ],
+          "default": "bottom",
+          "info": "On mobile, left thumbnails always collapse to a horizontal row below the image."
+        },
+        {
+          "type": "range",
+          "id": "thumbnail_size",
+          "label": "Thumbnail size",
+          "min": 48,
+          "max": 160,
+          "step": 8,
+          "unit": "px",
+          "default": 80
+        },
+        {
+          "type": "header",
+          "content": "Featured image"
+        },
+        {
+          "type": "select",
+          "id": "image_ratio",
+          "label": "Aspect ratio",
+          "options": [
+            { "value": "natural",   "label": "Natural (image dimensions)" },
+            { "value": "square",    "label": "Square (1:1)" },
+            { "value": "portrait",  "label": "Portrait (2:3)" },
+            { "value": "landscape", "label": "Landscape (4:3)" }
+          ],
+          "default": "natural"
         }
       ]
     }
