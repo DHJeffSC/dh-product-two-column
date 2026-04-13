@@ -2,17 +2,42 @@
   DH Product Two Column Section
   A flexible two-column layout section for Shopify OS 2.0 product pages.
   Supports rich text, custom liquid, and image block types.
-  Each block is assigned to left or right column via block settings.
+  Each block can be assigned to the left column, right column, or both columns (full-width span).
+  Spanning blocks can be placed above or below the two-column grid.
 {% endcomment %}
 
 {%- liquid
-  assign section_id = 'dh-two-col-' | append: section.id
-  assign col_ratio   = section.settings.column_ratio | default: '50-50'
-  assign col_gap     = section.settings.column_gap    | default: 32
-  assign pt          = section.settings.padding_top   | default: 40
-  assign pb          = section.settings.padding_bottom | default: 40
-  assign v_align     = section.settings.vertical_align | default: 'start'
-  assign bg_color    = section.settings.background_color
+  assign section_id    = 'dh-two-col-' | append: section.id
+  assign col_ratio     = section.settings.column_ratio     | default: '50-50'
+  assign col_gap       = section.settings.column_gap       | default: 32
+  assign pt            = section.settings.padding_top      | default: 40
+  assign pb            = section.settings.padding_bottom   | default: 40
+  assign v_align       = section.settings.vertical_align   | default: 'start'
+  assign bg_color      = section.settings.background_color
+  assign max_width_key = section.settings.max_width        | default: 'page'
+  assign content_align = section.settings.content_alignment | default: 'center'
+
+  case max_width_key
+    when 'narrow'
+      assign max_width_val = '720px'
+    when 'medium'
+      assign max_width_val = '960px'
+    when 'wide'
+      assign max_width_val = '1200px'
+    when 'full'
+      assign max_width_val = '100%'
+    else
+      assign max_width_val = 'var(--page-width, 1200px)'
+  endcase
+
+  case content_align
+    when 'left'
+      assign container_margin = '0 auto 0 0'
+    when 'right'
+      assign container_margin = '0 0 0 auto'
+    else
+      assign container_margin = '0 auto'
+  endcase
 
   case col_ratio
     when '50-50'
@@ -35,13 +60,14 @@
       assign right_fr = '1fr'
   endcase
 
-  assign left_blocks  = ''
-  assign right_blocks = ''
+  comment
+    Check whether the section has any left/right blocks so we skip
+    rendering an empty grid when only spanning blocks are present.
+  endcomment
+  assign has_col_blocks = false
   for block in section.blocks
-    if block.settings.column == 'right'
-      assign right_blocks = right_blocks | append: block.id | append: ','
-    else
-      assign left_blocks = left_blocks | append: block.id | append: ','
+    if block.settings.column == 'left' or block.settings.column == 'right' or block.settings.column == blank
+      assign has_col_blocks = true
     endif
   endfor
 -%}
@@ -54,12 +80,19 @@
     padding-bottom: {{ pb }}px;
   }
 
-  /* ── Page-width container – mirrors Enterprise .page-width convention ── */
+  /* ── Page-width container ── */
   #{{ section_id }} .dh-two-col__container {
-    max-width: var(--page-width, 1200px);
-    margin-inline: auto;
+    max-width: {{ max_width_val }};
+    margin: {{ container_margin }};
     padding-inline: var(--page-width-margin, clamp(1.5rem, 5vw, 3rem));
     box-sizing: border-box;
+  }
+
+  /* ── Inner wrapper: stacks spanning rows + the grid with a consistent gap ── */
+  #{{ section_id }} .dh-two-col__inner {
+    display: flex;
+    flex-direction: column;
+    gap: {{ col_gap }}px;
   }
 
   /* ── Two-column grid ── */
@@ -76,6 +109,14 @@
     flex-direction: column;
     gap: 1.5rem;
     min-width: 0; /* prevent blowout when content is wide */
+  }
+
+  /* ── Spanning block row (full width above or below the grid) ── */
+  #{{ section_id }} .dh-two-col__span {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
   }
 
   /* ── Rich text block ── */
@@ -138,172 +179,83 @@
 
 <section id="{{ section_id }}" class="dh-two-col color-{{ section.settings.color_scheme | default: 'background-1' }}">
   <div class="dh-two-col__container">
-    <div class="dh-two-col__grid">
+    <div class="dh-two-col__inner">
 
-      {%- comment -%} ── LEFT COLUMN ── {%- endcomment -%}
-      <div class="dh-two-col__col dh-two-col__col--left">
-        {%- for block in section.blocks -%}
-          {%- if block.settings.column == 'left' or block.settings.column == blank -%}
-            {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
-          {%- endif -%}
-        {%- endfor -%}
-      </div>
+      {%- comment -%} ── SPANNING BLOCKS: ABOVE ──
+        Render any blocks assigned to "both" columns with placement "above" (or blank).
+      {%- endcomment -%}
+      {%- assign has_above = false -%}
+      {%- for block in section.blocks -%}
+        {%- if block.settings.column == 'both' and block.settings.span_placement != 'below' -%}
+          {%- assign has_above = true -%}
+        {%- endif -%}
+      {%- endfor -%}
 
-      {%- comment -%} ── RIGHT COLUMN ── {%- endcomment -%}
-      <div class="dh-two-col__col dh-two-col__col--right">
-        {%- for block in section.blocks -%}
-          {%- if block.settings.column == 'right' -%}
-            {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
-          {%- endif -%}
-        {%- endfor -%}
-      </div>
+      {%- if has_above -%}
+        <div class="dh-two-col__span dh-two-col__span--above">
+          {%- for block in section.blocks -%}
+            {%- if block.settings.column == 'both' and block.settings.span_placement != 'below' -%}
+              {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+
+      {%- comment -%} ── TWO-COLUMN GRID ──
+        Only rendered when at least one block is assigned to left or right.
+      {%- endcomment -%}
+      {%- if has_col_blocks -%}
+        <div class="dh-two-col__grid">
+
+          {%- comment -%} LEFT COLUMN {%- endcomment -%}
+          <div class="dh-two-col__col dh-two-col__col--left">
+            {%- for block in section.blocks -%}
+              {%- if block.settings.column == 'left' or block.settings.column == blank -%}
+                {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
+              {%- endif -%}
+            {%- endfor -%}
+          </div>
+
+          {%- comment -%} RIGHT COLUMN {%- endcomment -%}
+          <div class="dh-two-col__col dh-two-col__col--right">
+            {%- for block in section.blocks -%}
+              {%- if block.settings.column == 'right' -%}
+                {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
+              {%- endif -%}
+            {%- endfor -%}
+          </div>
+
+        </div>
+      {%- endif -%}
+
+      {%- comment -%} ── SPANNING BLOCKS: BELOW ──
+        Render any blocks assigned to "both" columns with placement "below".
+      {%- endcomment -%}
+      {%- assign has_below = false -%}
+      {%- for block in section.blocks -%}
+        {%- if block.settings.column == 'both' and block.settings.span_placement == 'below' -%}
+          {%- assign has_below = true -%}
+        {%- endif -%}
+      {%- endfor -%}
+
+      {%- if has_below -%}
+        <div class="dh-two-col__span dh-two-col__span--below">
+          {%- for block in section.blocks -%}
+            {%- if block.settings.column == 'both' and block.settings.span_placement == 'below' -%}
+              {%- render 'dh-two-col-block', block: block, section_id: section_id -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
 
     </div>
   </div>
 </section>
 
-{%- comment -%}
-  ── INLINE BLOCK RENDERING ──
-  Because Shopify does not allow partial includes with block loops in all themes,
-  we render blocks inline using a second loop gated by column.
-  The snippet approach above is the clean pattern; if the snippet is missing,
-  the section gracefully renders nothing rather than erroring.
-
-  Alternatively, replace the render calls above with the inline block markup below
-  and remove the render tags if you prefer not to use a snippet file.
-{%- endcomment -%}
-
-{%- comment -%}
-  ── BLOCK RENDERING FALLBACK (inline) ──
-  If you are not using a snippet, replace each
-    {%- render 'dh-two-col-block' ... -%}
-  call with the inline content below.
-
-  This file ships as self-contained: blocks are rendered inline in the columns above
-  via the snippet tag. If the snippet is absent the section still loads without crashing.
-
-  For a fully self-contained single-file version, use the structure immediately below.
-{%- endcomment -%}
-
-{% comment %} ============================================================
-  SELF-CONTAINED SINGLE-FILE VERSION
-  The section above uses `render 'dh-two-col-block'` for clean separation.
-  This comment block shows the inline equivalent for each block type.
-  To use this as a fully standalone single file, replace the two column div
-  loops above with the code in this comment, removing the render calls.
-  ============================================================ {% endcomment %}
-
 <script>
   // No JavaScript required for this section.
-  // Layout is handled entirely with CSS Grid.
+  // Layout is handled entirely with CSS Grid and Flexbox.
 </script>
-
-{% comment %} ── SNIPPET: snippets/dh-two-col-block.liquid ──
-Paste this into a new file: snippets/dh-two-col-block.liquid
-
-{%- case block.type -%}
-
-  {%- when 'rich_text' -%}
-    <div class="dh-block-richtext" {{ block.shopify_attributes }}>
-      {%- if block.settings.heading != blank -%}
-        <h2 class="dh-block-richtext__heading">{{ block.settings.heading | escape }}</h2>
-      {%- endif -%}
-      {%- if block.settings.body != blank -%}
-        <div class="dh-block-richtext__body rte">{{ block.settings.body }}</div>
-      {%- endif -%}
-    </div>
-
-  {%- when 'custom_liquid' -%}
-    <div class="dh-block-custom-liquid" {{ block.shopify_attributes }}>
-      {{ block.settings.custom_liquid }}
-    </div>
-
-  {%- when 'image' -%}
-    <div class="dh-block-image" {{ block.shopify_attributes }}>
-      {%- if block.settings.heading != blank -%}
-        <h3 class="dh-block-image__heading">{{ block.settings.heading | escape }}</h3>
-      {%- endif -%}
-      {%- if block.settings.image != blank -%}
-        {%- assign img_width = block.settings.image_width | default: 100 -%}
-        <span class="dh-block-image__img-wrap" style="max-width: {{ img_width }}%;">
-          {{
-            block.settings.image
-            | image_url: width: 1200
-            | image_tag:
-              loading: 'lazy',
-              widths: '400, 600, 800, 1000, 1200',
-              sizes: '(max-width: 749px) 100vw, 50vw'
-          }}
-        </span>
-      {%- endif -%}
-      {%- if block.settings.text != blank -%}
-        <div class="dh-block-image__text rte">{{ block.settings.text }}</div>
-      {%- endif -%}
-    </div>
-
-{%- endcase -%}
-{% endcomment %}
-
-{% comment %} ──────────────────────────────────────────────────────────────
-  END SNIPPET REFERENCE
-  The inline block rendering below is used when the snippet is not present.
-  It duplicates the snippet logic so this section works standalone.
-────────────────────────────────────────────────────────────────────────── {% endcomment %}
-
-{%- comment -%}
-  Shopify does not allow liquid inside HTML comments without rendering it,
-  so the full inline block rendering is embedded directly in the column loops
-  using the render tag pointing to the snippet above.
-
-  If you prefer a single-file setup with no snippet dependency,
-  replace the two `for block in section.blocks` loops with the version below:
-
-  LEFT COLUMN LOOP (replace the left col div contents):
-
-  {%- for block in section.blocks -%}
-    {%- if block.settings.column == 'left' or block.settings.column == blank -%}
-      {%- case block.type -%}
-        {%- when 'rich_text' -%}
-          <div class="dh-block-richtext" {{ block.shopify_attributes }}>
-            {%- if block.settings.heading != blank -%}
-              <h2 class="dh-block-richtext__heading">{{ block.settings.heading | escape }}</h2>
-            {%- endif -%}
-            {%- if block.settings.body != blank -%}
-              <div class="dh-block-richtext__body rte">{{ block.settings.body }}</div>
-            {%- endif -%}
-          </div>
-        {%- when 'custom_liquid' -%}
-          <div class="dh-block-custom-liquid" {{ block.shopify_attributes }}>
-            {{ block.settings.custom_liquid }}
-          </div>
-        {%- when 'image' -%}
-          <div class="dh-block-image" {{ block.shopify_attributes }}>
-            {%- if block.settings.heading != blank -%}
-              <h3 class="dh-block-image__heading">{{ block.settings.heading | escape }}</h3>
-            {%- endif -%}
-            {%- if block.settings.image != blank -%}
-              {%- assign img_width = block.settings.image_width | default: 100 -%}
-              <span class="dh-block-image__img-wrap" style="max-width: {{ img_width }}%;">
-                {{
-                  block.settings.image
-                  | image_url: width: 1200
-                  | image_tag:
-                    loading: 'lazy',
-                    widths: '400, 600, 800, 1000, 1200',
-                    sizes: '(max-width: 749px) 100vw, 50vw'
-                }}
-              </span>
-            {%- endif -%}
-            {%- if block.settings.text != blank -%}
-              <div class="dh-block-image__text rte">{{ block.settings.text }}</div>
-            {%- endif -%}
-          </div>
-      {%- endcase -%}
-    {%- endif -%}
-  {%- endfor -%}
-
-  (Mirror the same case block for the right column loop, swapping the column check to == 'right')
-{%- endcomment -%}
 
 {% schema %}
 {
@@ -343,11 +295,42 @@ Paste this into a new file: snippets/dh-two-col-block.liquid
       "type": "range",
       "id": "column_gap",
       "label": "Gap between columns",
+      "info": "Also controls spacing between full-width spanning blocks and the column grid.",
       "min": 0,
       "max": 120,
       "step": 4,
       "unit": "px",
       "default": 32
+    },
+    {
+      "type": "header",
+      "content": "Container"
+    },
+    {
+      "type": "select",
+      "id": "max_width",
+      "label": "Max width",
+      "options": [
+        { "value": "page",   "label": "Theme page width" },
+        { "value": "wide",   "label": "Wide (1200px)" },
+        { "value": "medium", "label": "Medium (960px)" },
+        { "value": "narrow", "label": "Narrow (720px)" },
+        { "value": "full",   "label": "Full width" }
+      ],
+      "default": "page",
+      "info": "\"Theme page width\" uses the --page-width CSS variable from the Enterprise theme."
+    },
+    {
+      "type": "select",
+      "id": "content_alignment",
+      "label": "Container alignment",
+      "options": [
+        { "value": "left",   "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right",  "label": "Right" }
+      ],
+      "default": "center",
+      "info": "Only visible when max width is narrower than the page."
     },
     {
       "type": "header",
@@ -409,9 +392,21 @@ Paste this into a new file: snippets/dh-two-col-block.liquid
           "label": "Column",
           "options": [
             { "value": "left",  "label": "Left" },
-            { "value": "right", "label": "Right" }
+            { "value": "right", "label": "Right" },
+            { "value": "both",  "label": "Both (full width)" }
           ],
           "default": "left"
+        },
+        {
+          "type": "select",
+          "id": "span_placement",
+          "label": "Placement",
+          "options": [
+            { "value": "above", "label": "Above columns" },
+            { "value": "below", "label": "Below columns" }
+          ],
+          "default": "above",
+          "info": "Only applies when Column is set to \"Both (full width)\"."
         },
         {
           "type": "text",
@@ -437,9 +432,21 @@ Paste this into a new file: snippets/dh-two-col-block.liquid
           "label": "Column",
           "options": [
             { "value": "left",  "label": "Left" },
-            { "value": "right", "label": "Right" }
+            { "value": "right", "label": "Right" },
+            { "value": "both",  "label": "Both (full width)" }
           ],
           "default": "right"
+        },
+        {
+          "type": "select",
+          "id": "span_placement",
+          "label": "Placement",
+          "options": [
+            { "value": "above", "label": "Above columns" },
+            { "value": "below", "label": "Below columns" }
+          ],
+          "default": "above",
+          "info": "Only applies when Column is set to \"Both (full width)\"."
         },
         {
           "type": "liquid",
@@ -459,9 +466,21 @@ Paste this into a new file: snippets/dh-two-col-block.liquid
           "label": "Column",
           "options": [
             { "value": "left",  "label": "Left" },
-            { "value": "right", "label": "Right" }
+            { "value": "right", "label": "Right" },
+            { "value": "both",  "label": "Both (full width)" }
           ],
           "default": "left"
+        },
+        {
+          "type": "select",
+          "id": "span_placement",
+          "label": "Placement",
+          "options": [
+            { "value": "above", "label": "Above columns" },
+            { "value": "below", "label": "Below columns" }
+          ],
+          "default": "above",
+          "info": "Only applies when Column is set to \"Both (full width)\"."
         },
         {
           "type": "image_picker",
@@ -477,7 +496,7 @@ Paste this into a new file: snippets/dh-two-col-block.liquid
           "step": 5,
           "unit": "%",
           "default": 100,
-          "info": "Percentage of the column width."
+          "info": "Percentage of the column width (or full container when spanning both)."
         },
         {
           "type": "text",
